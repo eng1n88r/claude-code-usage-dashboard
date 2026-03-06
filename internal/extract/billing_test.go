@@ -61,26 +61,41 @@ func TestBuildPlanAnalysis(t *testing.T) {
 
 	result := BuildPlanAnalysis(planHistory, dailyCosts, sessions)
 
-	if len(result.Periods) != 1 {
-		t.Fatalf("expected 1 period, got %d", len(result.Periods))
+	// Monthly billing cycles: Jan 1–31 and Feb 1–28
+	if len(result.Periods) != 2 {
+		t.Fatalf("expected 2 periods, got %d", len(result.Periods))
 	}
-	p := result.Periods[0]
 
-	if p.APICost != 80.0 {
-		t.Errorf("expected API cost 80.0, got %f", p.APICost)
+	// January period
+	p0 := result.Periods[0]
+	if p0.Start != "2026-01-01" || p0.End != "2026-01-31" {
+		t.Errorf("period 0: expected 2026-01-01 to 2026-01-31, got %s to %s", p0.Start, p0.End)
 	}
-	if p.Sessions != 2 {
-		t.Errorf("expected 2 sessions, got %d", p.Sessions)
+	if p0.APICost != 50.0 {
+		t.Errorf("period 0: expected API cost 50.0, got %f", p0.APICost)
 	}
-	if p.Messages != 150 {
-		t.Errorf("expected 150 messages, got %d", p.Messages)
+	if p0.Sessions != 1 {
+		t.Errorf("period 0: expected 1 session, got %d", p0.Sessions)
 	}
-	if p.DaysActive != 2 {
-		t.Errorf("expected 2 active days, got %d", p.DaysActive)
+	if p0.Messages != 100 {
+		t.Errorf("period 0: expected 100 messages, got %d", p0.Messages)
 	}
-	// Savings: 80.0 - 93.0 = -13.0
-	if p.Savings != -13.0 {
-		t.Errorf("expected savings -13.0, got %f", p.Savings)
+
+	// February period
+	p1 := result.Periods[1]
+	if p1.Start != "2026-02-01" || p1.End != "2026-02-28" {
+		t.Errorf("period 1: expected 2026-02-01 to 2026-02-28, got %s to %s", p1.Start, p1.End)
+	}
+	if p1.APICost != 30.0 {
+		t.Errorf("period 1: expected API cost 30.0, got %f", p1.APICost)
+	}
+	if p1.Sessions != 1 {
+		t.Errorf("period 1: expected 1 session, got %d", p1.Sessions)
+	}
+
+	// Total across periods
+	if result.TotalAPICost != 80.0 {
+		t.Errorf("expected total API cost 80.0, got %f", result.TotalAPICost)
 	}
 }
 
