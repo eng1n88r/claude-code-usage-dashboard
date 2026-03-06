@@ -20,8 +20,8 @@ dot-claude.json
 .claude/
 
 # Go binaries
-claude-dashboard
-claude-dashboard.exe
+/claude-dashboard
+/claude-dashboard.exe
 *.exe~
 
 # IDE
