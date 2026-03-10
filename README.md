@@ -4,6 +4,8 @@ A single-binary CLI dashboard for [Claude Code](https://docs.anthropic.com/en/do
 
 Inspired by [claude-code-stats](https://github.com/AeternaLabsHQ/claude-code-stats) and usage-limit research at [she-llac.com/claude-limits](https://she-llac.com/claude-limits).
 
+![Demo](demo.gif)
+
 ## Features
 
 - **Overview** -- Quick summary of your estimated API value, total messages, sessions, and output tokens
@@ -14,8 +16,6 @@ Inspired by [claude-code-stats](https://github.com/AeternaLabsHQ/claude-code-sta
 - **Billing & ROI** -- Compare your subscription plan(s) against what the same usage would cost via the API
 - **System** -- Check installed plugins, storage usage, todo progress, and file-history stats
 - **Credit Limits** -- Track credit consumption against your plan's caps, with session and weekly windows plus projections
-
-![Demo](demo.gif)
 
 ## Install
 
