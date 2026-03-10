@@ -122,33 +122,6 @@ goreleaser release --snapshot --clean
 # Targets: linux/darwin/windows x amd64/arm64
 ```
 
-## Project Structure
-
-```
-cmd/claude-dashboard/main.go     # CLI entry point (Cobra)
-internal/
-  extract/                       # Data extraction from ~/.claude/
-    types.go                     # Data structures
-    sessions.go                  # JSONL transcript parser
-    pricing.go                   # Model pricing + cost calculation
-    billing.go                   # Plan/billing period analysis
-    config.go                    # Config + locale loading
-    extract.go                   # Main orchestrator
-    history.go, plugins.go,      # Additional data sources
-    plans.go, storage.go
-    locales/                     # Embedded locale files (go:embed)
-  tui/                           # Bubble Tea TUI
-    app.go                       # Root model + tab navigation
-    styles.go                    # Lipgloss styles
-    helpers.go                   # Formatting utilities
-    print.go                     # Non-interactive renderers
-    windows.go                   # Windows UTF-8 console setup
-    views/                       # Tab view renderers
-  output/
-    json.go                      # JSON output writer
-.goreleaser.yml
-```
-
 ## License
 
 MIT
