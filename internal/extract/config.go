@@ -11,6 +11,8 @@ import (
 	"strings"
 )
 
+//go:generate cp ../../.env.example env.example
+
 //go:embed locales/*.json
 var localeFS embed.FS
 
@@ -101,10 +103,14 @@ func parsePlanFromEnv(env map[string]string, prefix string) PlanConfig {
 }
 
 // LoadConfig reads a .env config file from the given path.
+// If configPath is empty, returns DefaultConfig.
 func LoadConfig(configPath string) (*Config, error) {
+	if configPath == "" {
+		return DefaultConfig(), nil
+	}
 	env, err := parseEnvFile(configPath)
 	if err != nil {
-		return nil, fmt.Errorf("config not found: %s — copy .env.example to .env and adjust", configPath)
+		return nil, fmt.Errorf("config not found: %s — run 'claude-dashboard init' to create one", configPath)
 	}
 	return configFromEnv(env)
 }
@@ -113,6 +119,7 @@ func LoadConfig(configPath string) (*Config, error) {
 // 1. Explicit path (if provided)
 // 2. CWD
 // 3. ~/.config/claude-dashboard/
+// Returns empty string (no error) if no config file is found — defaults will be used.
 func FindConfig(explicit string) (string, error) {
 	if explicit != "" {
 		if _, err := os.Stat(explicit); err == nil {
@@ -137,7 +144,41 @@ func FindConfig(explicit string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf(".env not found in CWD or ~/.config/claude-dashboard/ — copy .env.example to .env")
+	// No config found — will use defaults
+	return "", nil
+}
+
+// DefaultConfig returns a Config with sensible defaults for first-time users.
+func DefaultConfig() *Config {
+	return &Config{
+		PlanHistory: []PlanConfig{
+			{
+				Plan:       "Pro",
+				Tier:       "pro",
+				Start:      "2026-01-01",
+				CostUSD:    20.00,
+				BillingDay: 1,
+			},
+		},
+	}
+}
+
+//go:embed env.example
+var envExample []byte
+
+// ConfigDir returns the default config directory path (~/.config/claude-dashboard/).
+func ConfigDir() string {
+	home, _ := os.UserHomeDir()
+	return filepath.Join(home, ".config", "claude-dashboard")
+}
+
+// WriteDefaultConfig writes the embedded .env.example to the given path.
+func WriteDefaultConfig(path string) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return fmt.Errorf("creating config directory: %w", err)
+	}
+	return os.WriteFile(path, envExample, 0o644)
 }
 
 // LoadLocale loads the English locale JSON from the embedded FS.

@@ -117,6 +117,29 @@ func TestLoadLocale(t *testing.T) {
 }
 
 
+func TestLoadConfig_Empty(t *testing.T) {
+	cfg, err := LoadConfig("")
+	if err != nil {
+		t.Fatalf("LoadConfig(\"\") should return defaults, got error: %v", err)
+	}
+	if len(cfg.PlanHistory) != 1 {
+		t.Fatalf("expected 1 default plan, got %d", len(cfg.PlanHistory))
+	}
+	if cfg.PlanHistory[0].Plan != "Pro" {
+		t.Errorf("expected default plan 'Pro', got %q", cfg.PlanHistory[0].Plan)
+	}
+}
+
+func TestDefaultConfig(t *testing.T) {
+	cfg := DefaultConfig()
+	if len(cfg.PlanHistory) == 0 {
+		t.Fatal("DefaultConfig should have at least one plan")
+	}
+	if cfg.PlanHistory[0].CostUSD != 20.00 {
+		t.Errorf("expected default cost 20.00, got %f", cfg.PlanHistory[0].CostUSD)
+	}
+}
+
 func TestFindConfig_Explicit(t *testing.T) {
 	fixturePath := filepath.Join("..", "..", "..", "testdata", "test_config.env")
 	if _, err := os.Stat(fixturePath); os.IsNotExist(err) {

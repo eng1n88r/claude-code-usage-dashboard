@@ -15,6 +15,8 @@ Inspired by [claude-code-stats](https://github.com/AeternaLabsHQ/claude-code-sta
 - **System** -- Check installed plugins, storage usage, todo progress, and file-history stats
 - **Credit Limits** -- Track credit consumption against your plan's caps, with session and weekly windows plus projections
 
+![Demo](demo.gif)
+
 ## Install
 
 ### Pre-built Binary

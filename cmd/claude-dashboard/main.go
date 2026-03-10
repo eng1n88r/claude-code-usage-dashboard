@@ -52,6 +52,14 @@ func main() {
 	}
 	rootCmd.AddCommand(extractCmd)
 
+	// init subcommand
+	initCmd := &cobra.Command{
+		Use:   "init",
+		Short: "Create a .env config file with default settings",
+		RunE:  runInit,
+	}
+	rootCmd.AddCommand(initCmd)
+
 	// version subcommand
 	versionCmd := &cobra.Command{
 		Use:   "version",
@@ -76,7 +84,30 @@ func loadConfigAndExtract() (*extract.DashboardData, error) {
 	if err != nil {
 		return nil, err
 	}
+	if configPath == "" && !flagQuiet {
+		fmt.Fprintln(os.Stderr, "No .env config found, using defaults (Pro plan). Run 'claude-dashboard init' to customize.")
+	}
 	return extract.Run(cfg, flagQuiet)
+}
+
+func runInit(cmd *cobra.Command, args []string) error {
+	// Determine target path
+	target := flagConfig
+	if target == "" {
+		target = filepath.Join(extract.ConfigDir(), ".env")
+	}
+
+	// Check if file already exists
+	if _, err := os.Stat(target); err == nil {
+		return fmt.Errorf("config already exists at %s — edit it directly or remove it first", target)
+	}
+
+	if err := extract.WriteDefaultConfig(target); err != nil {
+		return err
+	}
+	fmt.Printf("Created config at %s\n", target)
+	fmt.Println("Edit this file to match your Claude plan (Pro/Max, billing day, etc.).")
+	return nil
 }
 
 func outputDir() string {

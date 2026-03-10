@@ -19,6 +19,9 @@ dot-claude.json
 # Claude Code local settings
 .claude/
 
+# Generated embed files (copied via go:generate)
+internal/extract/env.example
+
 # Go binaries
 /claude-dashboard
 /claude-dashboard.exe
