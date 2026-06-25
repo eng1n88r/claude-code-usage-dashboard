@@ -21,7 +21,32 @@ Inspired by [claude-code-stats](https://github.com/AeternaLabsHQ/claude-code-sta
 
 ### Pre-built Binary
 
-Download from [Releases](https://github.com/eng1n88r/claude-code-usage-dashboard/releases) for your platform.
+Download the archive for your platform from [Releases](https://github.com/eng1n88r/claude-code-usage-dashboard/releases). Releases are packaged as `.tar.gz` (Linux/macOS) or `.zip` (Windows) and contain the `claude-dashboard` binary along with `.env.example`, `README.md`, and `LICENSE`.
+
+**Linux / macOS:**
+
+```bash
+# Extract (replace VERSION/OS/ARCH to match the file you downloaded,
+# e.g. claude-code-usage-dashboard_1.2.3_darwin_arm64.tar.gz)
+tar -xzf claude-code-usage-dashboard_VERSION_OS_ARCH.tar.gz
+
+# Run it
+./claude-dashboard
+
+# Optional: move it onto your PATH so you can run it from anywhere
+sudo mv claude-dashboard /usr/local/bin/
+claude-dashboard
+```
+
+On macOS, if Gatekeeper blocks the unsigned binary, clear the quarantine flag first:
+
+```bash
+xattr -d com.apple.quarantine claude-dashboard
+```
+
+**Windows:**
+
+Extract the `.zip` archive, then run `claude-dashboard.exe` from a terminal (PowerShell or Command Prompt) in the extracted folder.
 
 ### From Source
 
