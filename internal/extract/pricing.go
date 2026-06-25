@@ -13,6 +13,21 @@ type ModelPricing struct {
 }
 
 var pricing = map[string]ModelPricing{
+	"claude-fable-5": {
+		Input: 10.00, Output: 50.00,
+		CacheRead: 1.00, CacheWrite5m: 12.50, CacheWrite1h: 20.00,
+		Display: "Fable 5",
+	},
+	"claude-opus-4-8": {
+		Input: 5.00, Output: 25.00,
+		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
+		Display: "Opus 4.8",
+	},
+	"claude-opus-4-7": {
+		Input: 5.00, Output: 25.00,
+		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
+		Display: "Opus 4.7",
+	},
 	"claude-opus-4-6": {
 		Input: 5.00, Output: 25.00,
 		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
@@ -22,6 +37,11 @@ var pricing = map[string]ModelPricing{
 		Input: 5.00, Output: 25.00,
 		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
 		Display: "Opus 4.5",
+	},
+	"claude-sonnet-4-6": {
+		Input: 3.00, Output: 15.00,
+		CacheRead: 0.30, CacheWrite5m: 3.75, CacheWrite1h: 6.00,
+		Display: "Sonnet 4.6",
 	},
 	"claude-sonnet-4-5-20250929": {
 		Input: 3.00, Output: 15.00,
@@ -101,9 +121,15 @@ type CreditRate struct {
 	Output float64 `json:"output"`
 }
 
+// Credit rates follow she-llac.com/claude-limits: credit = (USD price per MTok) × 2/15.
+// e.g. Opus input $5 → 10/15, output $25 → 50/15; Fable 5 $10/$50 → 20/15, 100/15.
 var creditRates = map[string]CreditRate{
+	"claude-fable-5":             {Input: 20.0 / 15, Output: 100.0 / 15},
+	"claude-opus-4-8":            {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-7":            {Input: 10.0 / 15, Output: 50.0 / 15},
 	"claude-opus-4-6":            {Input: 10.0 / 15, Output: 50.0 / 15},
 	"claude-opus-4-5-20251101":   {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-sonnet-4-6":          {Input: 6.0 / 15, Output: 30.0 / 15},
 	"claude-sonnet-4-5-20250929": {Input: 6.0 / 15, Output: 30.0 / 15},
 	"claude-haiku-4-5-20251001":  {Input: 2.0 / 15, Output: 10.0 / 15},
 }
