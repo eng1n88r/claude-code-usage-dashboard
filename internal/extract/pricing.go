@@ -18,6 +18,11 @@ var pricing = map[string]ModelPricing{
 		CacheRead: 1.00, CacheWrite5m: 12.50, CacheWrite1h: 20.00,
 		Display: "Fable 5",
 	},
+	"claude-mythos-5": {
+		Input: 10.00, Output: 50.00,
+		CacheRead: 1.00, CacheWrite5m: 12.50, CacheWrite1h: 20.00,
+		Display: "Mythos 5",
+	},
 	"claude-opus-5": {
 		Input: 5.00, Output: 25.00,
 		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
@@ -43,6 +48,12 @@ var pricing = map[string]ModelPricing{
 		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
 		Display: "Opus 4.5",
 	},
+	// Introductory pricing through 2026-08-31; standard $3/$15 (cache 0.30/3.75/6.00) from 2026-09-01.
+	"claude-sonnet-5": {
+		Input: 2.00, Output: 10.00,
+		CacheRead: 0.20, CacheWrite5m: 2.50, CacheWrite1h: 4.00,
+		Display: "Sonnet 5",
+	},
 	"claude-sonnet-4-6": {
 		Input: 3.00, Output: 15.00,
 		CacheRead: 0.30, CacheWrite5m: 3.75, CacheWrite1h: 6.00,
@@ -57,6 +68,26 @@ var pricing = map[string]ModelPricing{
 		Input: 1.00, Output: 5.00,
 		CacheRead: 0.10, CacheWrite5m: 1.25, CacheWrite1h: 2.00,
 		Display: "Haiku 4.5",
+	},
+	"claude-opus-4-1-20250805": {
+		Input: 15.00, Output: 75.00,
+		CacheRead: 1.50, CacheWrite5m: 18.75, CacheWrite1h: 30.00,
+		Display: "Opus 4.1",
+	},
+	"claude-opus-4-20250514": {
+		Input: 15.00, Output: 75.00,
+		CacheRead: 1.50, CacheWrite5m: 18.75, CacheWrite1h: 30.00,
+		Display: "Opus 4",
+	},
+	"claude-sonnet-4-20250514": {
+		Input: 3.00, Output: 15.00,
+		CacheRead: 0.30, CacheWrite5m: 3.75, CacheWrite1h: 6.00,
+		Display: "Sonnet 4",
+	},
+	"claude-3-5-haiku-20241022": {
+		Input: 0.80, Output: 4.00,
+		CacheRead: 0.08, CacheWrite5m: 1.00, CacheWrite1h: 1.60,
+		Display: "Haiku 3.5",
 	},
 }
 
@@ -129,15 +160,23 @@ type CreditRate struct {
 // Credit rates follow she-llac.com/claude-limits: credit = (USD price per MTok) × 2/15.
 // e.g. Opus input $5 → 10/15, output $25 → 50/15; Fable 5 $10/$50 → 20/15, 100/15.
 var creditRates = map[string]CreditRate{
-	"claude-fable-5":             {Input: 20.0 / 15, Output: 100.0 / 15},
-	"claude-opus-5":              {Input: 10.0 / 15, Output: 50.0 / 15},
-	"claude-opus-4-8":            {Input: 10.0 / 15, Output: 50.0 / 15},
-	"claude-opus-4-7":            {Input: 10.0 / 15, Output: 50.0 / 15},
-	"claude-opus-4-6":            {Input: 10.0 / 15, Output: 50.0 / 15},
-	"claude-opus-4-5-20251101":   {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-fable-5":           {Input: 20.0 / 15, Output: 100.0 / 15},
+	"claude-mythos-5":          {Input: 20.0 / 15, Output: 100.0 / 15},
+	"claude-opus-5":            {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-8":          {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-7":          {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-6":          {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-5-20251101": {Input: 10.0 / 15, Output: 50.0 / 15},
+	"claude-opus-4-1-20250805": {Input: 30.0 / 15, Output: 150.0 / 15},
+	"claude-opus-4-20250514":   {Input: 30.0 / 15, Output: 150.0 / 15},
+	// Sonnet 5 credits use the standard $3/$15 price, not the introductory
+	// billing rate — usage limits track model tier, not promotions.
+	"claude-sonnet-5":            {Input: 6.0 / 15, Output: 30.0 / 15},
 	"claude-sonnet-4-6":          {Input: 6.0 / 15, Output: 30.0 / 15},
 	"claude-sonnet-4-5-20250929": {Input: 6.0 / 15, Output: 30.0 / 15},
+	"claude-sonnet-4-20250514":   {Input: 6.0 / 15, Output: 30.0 / 15},
 	"claude-haiku-4-5-20251001":  {Input: 2.0 / 15, Output: 10.0 / 15},
+	"claude-3-5-haiku-20241022":  {Input: 1.6 / 15, Output: 8.0 / 15},
 }
 
 var defaultCreditRate = CreditRate{Input: 10.0 / 15, Output: 50.0 / 15} // Opus fallback
