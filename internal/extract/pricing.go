@@ -18,6 +18,11 @@ var pricing = map[string]ModelPricing{
 		CacheRead: 1.00, CacheWrite5m: 12.50, CacheWrite1h: 20.00,
 		Display: "Fable 5",
 	},
+	"claude-opus-5": {
+		Input: 5.00, Output: 25.00,
+		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
+		Display: "Opus 5",
+	},
 	"claude-opus-4-8": {
 		Input: 5.00, Output: 25.00,
 		CacheRead: 0.50, CacheWrite5m: 6.25, CacheWrite1h: 10.00,
@@ -125,6 +130,7 @@ type CreditRate struct {
 // e.g. Opus input $5 → 10/15, output $25 → 50/15; Fable 5 $10/$50 → 20/15, 100/15.
 var creditRates = map[string]CreditRate{
 	"claude-fable-5":             {Input: 20.0 / 15, Output: 100.0 / 15},
+	"claude-opus-5":              {Input: 10.0 / 15, Output: 50.0 / 15},
 	"claude-opus-4-8":            {Input: 10.0 / 15, Output: 50.0 / 15},
 	"claude-opus-4-7":            {Input: 10.0 / 15, Output: 50.0 / 15},
 	"claude-opus-4-6":            {Input: 10.0 / 15, Output: 50.0 / 15},
