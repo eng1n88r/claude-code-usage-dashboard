@@ -157,12 +157,36 @@ func parseJSONLFile(path, fileSessionID, projectName string, fileSize int64, ses
 			}
 
 		case "assistant":
-			sess.MessageCount++
-			sess.AssistMsgCount++
-
 			message, _ := obj["message"].(map[string]interface{})
 			if message == nil {
+				sess.MessageCount++
+				sess.AssistMsgCount++
 				continue
+			}
+
+			// Claude Code writes one JSONL line per content block, and every
+			// line of the same API response repeats the same message.id and
+			// usage object. Count each API response exactly once or tokens,
+			// costs and credits get inflated ~2-3x.
+			duplicate := false
+			msgID := getString(message, "id")
+			if msgID == "" {
+				msgID = getString(obj, "requestId")
+			}
+			if msgID != "" {
+				if sess.seenMsgIDs == nil {
+					sess.seenMsgIDs = make(map[string]bool)
+				}
+				if sess.seenMsgIDs[msgID] {
+					duplicate = true
+				} else {
+					sess.seenMsgIDs[msgID] = true
+				}
+			}
+
+			if !duplicate {
+				sess.MessageCount++
+				sess.AssistMsgCount++
 			}
 
 			model := getString(message, "model")
@@ -171,7 +195,7 @@ func parseJSONLFile(path, fileSessionID, projectName string, fileSize int64, ses
 			}
 			usage, _ := message["usage"].(map[string]interface{})
 
-			if usage != nil && getInt(usage, "output_tokens") > 0 {
+			if !duplicate && usage != nil && getInt(usage, "output_tokens") > 0 {
 				m := sess.Models[model]
 				if m == nil {
 					m = &modelAccum{}

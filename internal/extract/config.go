@@ -67,6 +67,13 @@ func configFromEnv(env map[string]string) (*Config, error) {
 		cfg.PlanHistory = append(cfg.PlanHistory, plan)
 	}
 
+	cfg.WeeklyReset = env["WEEKLY_RESET"]
+	if v := env["WEEKLY_FABLE_LIMIT"]; v != "" {
+		if n, err := strconv.Atoi(strings.ReplaceAll(v, "_", "")); err == nil {
+			cfg.FableWeeklyLimit = n
+		}
+	}
+
 	return cfg, nil
 }
 

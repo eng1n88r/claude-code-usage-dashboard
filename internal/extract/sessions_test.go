@@ -170,6 +170,54 @@ func TestParseJSONLFile(t *testing.T) {
 	}
 }
 
+func TestParseJSONLFileDeduplicatesMessageLines(t *testing.T) {
+	// Claude Code writes one JSONL line per content block; every line of the
+	// same API response repeats the same message.id and usage. Tokens, calls
+	// and credits must be counted once per unique message id.
+	jsonl := `{"type":"assistant","sessionId":"s1","timestamp":"2026-08-02T10:00:00Z","message":{"id":"msg_1","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":500},"content":[{"type":"thinking","thinking":"..."}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-08-02T10:00:01Z","message":{"id":"msg_1","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":500},"content":[{"type":"text","text":"hi"}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-08-02T10:00:02Z","message":{"id":"msg_1","model":"claude-fable-5","usage":{"input_tokens":100,"output_tokens":500},"content":[{"type":"tool_use","id":"tu_1","name":"Read","input":{}}]}}
+{"type":"assistant","sessionId":"s1","timestamp":"2026-08-02T10:01:00Z","message":{"id":"msg_2","model":"claude-fable-5","usage":{"input_tokens":50,"output_tokens":200},"content":[{"type":"text","text":"done"}]}}
+`
+	dir := t.TempDir()
+	path := filepath.Join(dir, "s1.jsonl")
+	if err := os.WriteFile(path, []byte(jsonl), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	sessions := make(map[string]*rawSession)
+	parseJSONLFile(path, "s1", "test-project", 1024, sessions)
+
+	sess := sessions["s1"]
+	if sess == nil {
+		t.Fatal("session s1 not found")
+	}
+
+	m := sess.Models["claude-fable-5"]
+	if m == nil {
+		t.Fatal("model accumulator not found")
+	}
+	if m.Calls != 2 {
+		t.Errorf("expected 2 API calls (msg_1 deduped), got %d", m.Calls)
+	}
+	if m.OutputTokens != 700 {
+		t.Errorf("expected 700 output tokens (500+200), got %d", m.OutputTokens)
+	}
+	if m.InputTokens != 150 {
+		t.Errorf("expected 150 input tokens (100+50), got %d", m.InputTokens)
+	}
+	if sess.AssistMsgCount != 2 {
+		t.Errorf("expected 2 assistant messages, got %d", sess.AssistMsgCount)
+	}
+	if len(sess.CreditEvents) != 2 {
+		t.Errorf("expected 2 credit events, got %d", len(sess.CreditEvents))
+	}
+	// Tool blocks live on separate lines of the same message — still counted.
+	if sess.Tools["Read"] != 1 {
+		t.Errorf("expected 1 Read tool use, got %d", sess.Tools["Read"])
+	}
+}
+
 func TestGetString(t *testing.T) {
 	m := map[string]interface{}{
 		"key1": "value1",

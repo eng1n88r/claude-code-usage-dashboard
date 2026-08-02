@@ -3,6 +3,7 @@ package views
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"charm.land/lipgloss/v2"
 	"charm.land/lipgloss/v2/table"
@@ -48,7 +49,14 @@ func RenderLimits(data *extract.DashboardData) string {
 	b.WriteString("\n")
 
 	// Weekly Window
-	b.WriteString(title.Render("Current Week (7-day rolling)"))
+	weekTitle := "Current Week (7-day rolling)"
+	if ul.CurrentWeek != nil && ul.CurrentWeek.Anchored {
+		weekTitle = "Current Week · all models"
+		if reset := fmtResetTime(ul.CurrentWeek.WindowEnd); reset != "" {
+			weekTitle += " (resets " + reset + ")"
+		}
+	}
+	b.WriteString(title.Render(weekTitle))
 	b.WriteString("\n\n")
 
 	if ul.CurrentWeek != nil {
@@ -61,6 +69,31 @@ func RenderLimits(data *extract.DashboardData) string {
 		b.WriteString(fmt.Sprintf("  Remaining: %s credits\n", fmtCredits(ww.RemainingCredits)))
 	}
 	b.WriteString("\n")
+
+	// Fable Weekly Window (separate bucket in the official app)
+	if fw := ul.CurrentWeekFable; fw != nil {
+		fableTitle := "Current Week · Fable"
+		if fw.Anchored {
+			if reset := fmtResetTime(fw.WindowEnd); reset != "" {
+				fableTitle += " (resets " + reset + ")"
+			}
+		}
+		b.WriteString(title.Render(fableTitle))
+		b.WriteString("\n\n")
+		if fw.Limit > 0 {
+			bar := makeProgressBar(fw.PctUsed, 40)
+			b.WriteString(fmt.Sprintf("  %s  %.1f%%\n", bar, fw.PctUsed))
+			b.WriteString(fmt.Sprintf("  %s / %s credits used\n",
+				bright.Render(fmtCredits(fw.CreditsUsed)),
+				fmtCredits(fw.Limit)))
+			b.WriteString(fmt.Sprintf("  Remaining: %s credits\n", fmtCredits(fw.RemainingCredits)))
+		} else {
+			b.WriteString(fmt.Sprintf("  %s credits used\n", bright.Render(fmtCredits(fw.CreditsUsed))))
+			b.WriteString(muted.Render("  Set WEEKLY_FABLE_LIMIT in .env to track % of the Fable cap"))
+			b.WriteString("\n")
+		}
+		b.WriteString("\n")
+	}
 
 	// Daily Credit Usage
 	if len(ul.DailyCredits) > 0 {
@@ -201,6 +234,16 @@ func makeProgressBar(pct float64, width int) string {
 		bar += "░"
 	}
 	return lipgloss.NewStyle().Foreground(lipgloss.Color(colorStr)).Render(bar)
+}
+
+// fmtResetTime renders an RFC3339 window end as a local reset label,
+// e.g. "Thu Aug 6, 10:00 AM". Returns "" if the timestamp doesn't parse.
+func fmtResetTime(rfc3339 string) string {
+	t, err := time.Parse(time.RFC3339, rfc3339)
+	if err != nil {
+		return ""
+	}
+	return t.Local().Format("Mon Jan 2, 3:04 PM")
 }
 
 func fmtCredits(n int) string {

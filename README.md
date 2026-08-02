@@ -15,7 +15,7 @@ Inspired by [claude-code-stats](https://github.com/AeternaLabsHQ/claude-code-sta
 - **Session Explorer** -- Dig into individual sessions with model breakdown, tool usage, and the first prompt you sent
 - **Billing & ROI** -- Compare your subscription plan(s) against what the same usage would cost via the API
 - **System** -- Check installed plugins, storage usage, todo progress, and file-history stats
-- **Credit Limits** -- Track credit consumption against your plan's caps, with session and weekly windows plus projections
+- **Credit Limits** -- Session (5-hour), weekly, and Fable credit windows matching the Claude app's usage popup, with projections
 
 ## Install
 
@@ -120,6 +120,18 @@ See [`.env.example`](.env.example) for all available options:
 | `PLAN_END` | | ISO date when your plan ended (leave empty for active plans) |
 | `PLAN_COST_USD` | | Monthly cost in USD |
 | `PLAN_BILLING_DAY` | | Day of the month billing occurs (1-31) |
+| `WEEKLY_RESET` | | Weekly limit reset schedule, e.g. `Thu 10:00` (24h, local time). Empty = rolling last 7 days |
+| `WEEKLY_FABLE_LIMIT` | | Credit cap for the `Weekly - Fable` bucket. Empty = show credits without a percentage |
+
+### Usage Limit Windows
+
+The 5-hour and weekly windows mirror the "Plan usage limits" popup in the Claude app:
+
+- **Session (5-hour)** -- starts at the first message of the most recent session.
+- **Weekly** -- set `WEEKLY_RESET` to your plan's reset time shown in the app ("Resets Thu 10:00 AM" → `WEEKLY_RESET=Thu 10:00`). The window then covers credits since the last reset. Without it, the dashboard falls back to a rolling 7-day sum, which also counts usage the app has already reset.
+- **Weekly - Fable** -- Fable/Mythos usage tracked against its own cap, like the app's separate row. Set `WEEKLY_FABLE_LIMIT` to show a percentage.
+
+**Scope:** only local Claude Code transcripts (`~/.claude/`) are counted. Usage from claude.ai web, desktop, and mobile shares the same plan limits but leaves no local transcripts, so dashboard percentages are a lower bound compared to the app.
 
 ### Multiple Plans
 

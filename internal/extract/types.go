@@ -31,6 +31,9 @@ type UsageLimits struct {
 	WeeklyLimit    int                 `json:"weekly_limit"`
 	CurrentSession *SessionWindow      `json:"current_session"`
 	CurrentWeek    *WeekWindow         `json:"current_week"`
+	// CurrentWeekFable mirrors the app's separate "Weekly · Fable" limit
+	// (Fable/Mythos-class usage only). Limit comes from WEEKLY_FABLE_LIMIT.
+	CurrentWeekFable *WeekWindow       `json:"current_week_fable,omitempty"`
 	DailyCredits   []DailyCredits      `json:"daily_credits"`
 	ModelCredits   []ModelCredits      `json:"model_credits"`
 	CreditRates    map[string]CreditRate `json:"credit_rates"`
@@ -48,7 +51,9 @@ type SessionWindow struct {
 	TimeRemainingMin int     `json:"time_remaining_min"`
 }
 
-// WeekWindow holds the rolling 7-day window usage.
+// WeekWindow holds the weekly window usage. When Anchored is true the window
+// follows the plan's fixed reset schedule (WindowEnd is the next reset time);
+// otherwise it is a rolling last-7-days sum.
 type WeekWindow struct {
 	CreditsUsed      int     `json:"credits_used"`
 	Limit            int     `json:"limit"`
@@ -56,6 +61,7 @@ type WeekWindow struct {
 	WindowStart      string  `json:"window_start"`
 	WindowEnd        string  `json:"window_end"`
 	RemainingCredits int     `json:"remaining_credits"`
+	Anchored         bool    `json:"anchored"`
 }
 
 // DailyCredits holds credit usage for a single day.
@@ -292,6 +298,7 @@ type rawSession struct {
 	FirstPrompt    string
 	FileSize       int64
 	Slug           string
+	seenMsgIDs     map[string]bool
 }
 
 type modelAccum struct {
@@ -306,6 +313,12 @@ type modelAccum struct {
 // Config types
 type Config struct {
 	PlanHistory []PlanConfig `json:"plan_history"`
+	// WeeklyReset anchors the weekly usage window to the plan's reset
+	// schedule, e.g. "Thu 10:00" (local time). Empty = rolling 7 days.
+	WeeklyReset string `json:"weekly_reset"`
+	// FableWeeklyLimit is the credit cap for the separate Fable weekly
+	// bucket shown in the official app. 0 = no cap configured.
+	FableWeeklyLimit int `json:"fable_weekly_limit"`
 }
 
 type PlanConfig struct {

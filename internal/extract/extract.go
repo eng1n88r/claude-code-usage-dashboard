@@ -6,6 +6,8 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -59,7 +61,7 @@ func Run(cfg *Config, quiet bool) (*DashboardData, error) {
 	}
 
 	// Build aggregated data
-	data := buildDashboardData(sessions, dotClaude, locale, weekdayNames, cfg.PlanHistory,
+	data := buildDashboardData(sessions, dotClaude, locale, weekdayNames, cfg,
 		plans, plugins, todos, fileHistory, storage, tier)
 
 	return data, nil
@@ -82,7 +84,7 @@ func buildDashboardData(
 	dotClaude map[string]interface{},
 	locale json.RawMessage,
 	weekdayNames []string,
-	planHistory []PlanConfig,
+	cfg *Config,
 	plans []PlanFile,
 	plugins PluginsData,
 	todos TodoStats,
@@ -395,7 +397,7 @@ func buildDashboardData(
 	}
 
 	// Plan analysis
-	planAnalysis := BuildPlanAnalysis(planHistory, dailyCostSeries, sessionList)
+	planAnalysis := BuildPlanAnalysis(cfg.PlanHistory, dailyCostSeries, sessionList)
 
 	firstSession := ""
 	lastSession := ""
@@ -404,7 +406,7 @@ func buildDashboardData(
 		lastSession = allDates[len(allDates)-1]
 	}
 
-	usageLimits := buildUsageLimits(sessions, tier)
+	usageLimits := buildUsageLimits(sessions, tier, cfg.WeeklyReset, cfg.FableWeeklyLimit)
 
 	return &DashboardData{
 		GeneratedAt:   time.Now().UTC().Format(time.RFC3339),
@@ -444,8 +446,58 @@ func buildDashboardData(
 	}
 }
 
+// parseWeeklyReset parses a "Thu 10:00" style anchor (weekday + HH:MM, local
+// time). Returns ok=false for empty or malformed values.
+func parseWeeklyReset(s string) (time.Weekday, int, int, bool) {
+	fields := strings.Fields(strings.TrimSpace(s))
+	if len(fields) != 2 {
+		return 0, 0, 0, false
+	}
+	weekdays := map[string]time.Weekday{
+		"sun": time.Sunday, "mon": time.Monday, "tue": time.Tuesday,
+		"wed": time.Wednesday, "thu": time.Thursday, "fri": time.Friday,
+		"sat": time.Saturday,
+	}
+	day := strings.ToLower(fields[0])
+	if len(day) > 3 {
+		day = day[:3]
+	}
+	wd, ok := weekdays[day]
+	if !ok {
+		return 0, 0, 0, false
+	}
+	hm := strings.SplitN(fields[1], ":", 2)
+	if len(hm) != 2 {
+		return 0, 0, 0, false
+	}
+	hh, err1 := strconv.Atoi(hm[0])
+	mm, err2 := strconv.Atoi(hm[1])
+	if err1 != nil || err2 != nil || hh < 0 || hh > 23 || mm < 0 || mm > 59 {
+		return 0, 0, 0, false
+	}
+	return wd, hh, mm, true
+}
+
+// lastWeeklyReset returns the most recent occurrence of the given
+// weekday+time at or before now, in now's location.
+func lastWeeklyReset(now time.Time, wd time.Weekday, hh, mm int) time.Time {
+	t := time.Date(now.Year(), now.Month(), now.Day(), hh, mm, 0, 0, now.Location())
+	daysBack := (int(now.Weekday()) - int(wd) + 7) % 7
+	t = t.AddDate(0, 0, -daysBack)
+	if t.After(now) {
+		t = t.AddDate(0, 0, -7)
+	}
+	return t
+}
+
+// isFableModel reports whether a model ID belongs to the Fable/Mythos tier,
+// which the official app tracks under a separate weekly limit.
+func isFableModel(modelID string) bool {
+	return strings.Contains(modelID, "fable") || strings.Contains(modelID, "mythos")
+}
+
 // buildUsageLimits calculates credit consumption for session and weekly windows.
-func buildUsageLimits(sessions map[string]*rawSession, tier string) *UsageLimits {
+func buildUsageLimits(sessions map[string]*rawSession, tier string, weeklyReset string, fableWeeklyLimit int) *UsageLimits {
 	// Collect all credit events across sessions
 	var allEvents []creditEvent
 	for _, sess := range sessions {
@@ -531,12 +583,27 @@ func buildUsageLimits(sessions map[string]*rawSession, tier string) *UsageLimits
 		}
 	}
 
-	// --- Weekly window (7d rolling) ---
+	// --- Weekly window ---
+	// Anchored to the plan's reset schedule when WEEKLY_RESET is configured
+	// (matching the official app); otherwise a rolling last-7-days sum.
 	weekAgoMs := nowMs - 7*24*60*60*1000
+	weekStartMs := weekAgoMs
+	weekEndMs := nowMs
+	anchored := false
+	if wd, hh, mm, ok := parseWeeklyReset(weeklyReset); ok {
+		start := lastWeeklyReset(time.Now(), wd, hh, mm)
+		weekStartMs = start.UnixMilli()
+		weekEndMs = start.AddDate(0, 0, 7).UnixMilli()
+		anchored = true
+	}
 	weeklyCredits := 0
+	fableCredits := 0
 	for _, evt := range allEvents {
-		if evt.Timestamp >= weekAgoMs && evt.Timestamp <= nowMs {
+		if evt.Timestamp >= weekStartMs && evt.Timestamp <= nowMs {
 			weeklyCredits += evt.Credits
+			if isFableModel(evt.Model) {
+				fableCredits += evt.Credits
+			}
 		}
 	}
 	weekPct := 0.0
@@ -552,9 +619,32 @@ func buildUsageLimits(sessions map[string]*rawSession, tier string) *UsageLimits
 		CreditsUsed:      weeklyCredits,
 		Limit:            limits.Weekly,
 		PctUsed:          weekPct,
-		WindowStart:      time.UnixMilli(weekAgoMs).UTC().Format(time.RFC3339),
-		WindowEnd:        now.Format(time.RFC3339),
+		WindowStart:      time.UnixMilli(weekStartMs).UTC().Format(time.RFC3339),
+		WindowEnd:        time.UnixMilli(weekEndMs).UTC().Format(time.RFC3339),
 		RemainingCredits: weekRemaining,
+		Anchored:         anchored,
+	}
+
+	var fableWeek *WeekWindow
+	if fableCredits > 0 || fableWeeklyLimit > 0 {
+		fablePct := 0.0
+		fableRemaining := 0
+		if fableWeeklyLimit > 0 {
+			fablePct = math.Round(float64(fableCredits)/float64(fableWeeklyLimit)*1000) / 10
+			fableRemaining = fableWeeklyLimit - fableCredits
+			if fableRemaining < 0 {
+				fableRemaining = 0
+			}
+		}
+		fableWeek = &WeekWindow{
+			CreditsUsed:      fableCredits,
+			Limit:            fableWeeklyLimit,
+			PctUsed:          fablePct,
+			WindowStart:      weekWindow.WindowStart,
+			WindowEnd:        weekWindow.WindowEnd,
+			RemainingCredits: fableRemaining,
+			Anchored:         anchored,
+		}
 	}
 
 	// --- Daily credit breakdown (last 7 days) ---
@@ -575,15 +665,18 @@ func buildUsageLimits(sessions map[string]*rawSession, tier string) *UsageLimits
 		dailyCredits = append(dailyCredits, DailyCredits{Date: d, Credits: dailyMap[d]})
 	}
 
-	// --- Model credit breakdown (weekly) ---
+	// --- Model credit breakdown (rolling last 7 days) ---
+	// Uses its own rolling total: the chart covers the last 7 days, which is
+	// a wider span than the anchored weekly limit window above.
 	modelMap := make(map[string]int)
+	totalWeekCredits := 0
 	for _, evt := range allEvents {
 		if evt.Timestamp >= weekAgoMs {
 			display := GetModelDisplay(evt.Model)
 			modelMap[display] += evt.Credits
+			totalWeekCredits += evt.Credits
 		}
 	}
-	totalWeekCredits := weeklyCredits
 	if totalWeekCredits == 0 {
 		totalWeekCredits = 1 // avoid division by zero
 	}
@@ -611,8 +704,9 @@ func buildUsageLimits(sessions map[string]*rawSession, tier string) *UsageLimits
 		PlanTier:       tier,
 		SessionLimit:   limits.Session,
 		WeeklyLimit:    limits.Weekly,
-		CurrentSession: sessionWindow,
-		CurrentWeek:    weekWindow,
+		CurrentSession:   sessionWindow,
+		CurrentWeek:      weekWindow,
+		CurrentWeekFable: fableWeek,
 		DailyCredits:   dailyCredits,
 		ModelCredits:   modelCredits,
 		CreditRates:    rates,
